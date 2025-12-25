@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>成绩打怪 · 进阶版</title>
+<style>
+/* --- 基础样式 --- */
+:root{--bg:#f4f6f8;--card:#ffffff;--text:#333;--accent:#28a745;--danger:#dc3545;--warn:#ffc107;--gray:#6c757d;--shadow:0 4px 12px rgba(0,0,0,0.08);}
+[data-theme="dark"]{--bg:#121212;--card:#1e1e1e;--text:#e0e0e0;--accent:#4caf50;--danger:#e57373;--warn:#ffb74d;--gray:#a0a0a0;--shadow:0 4px 12px rgba(0,0,0,0.5);}
+
+body{margin:0;font-family:-apple-system,"Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);transition:0.3s;}
+header{background:var(--card);padding:15px 20px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 4px rgba(0,0,0,0.05);position:sticky;top:0;z-index:100;}
+h1{margin:0;font-size:18px;font-weight:700;color:var(--accent);}
+
+/* --- 开关样式 --- */
+.switch{position:relative;display:inline-block;width:50px;height:26px}
+.switch input{opacity:0;width:0;height:0}
+.slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:#ccc;transition:.4s;border-radius:34px}
+.slider:before{position:absolute;content:"";height:20px;width:20px;left:3px;bottom:3px;background-color:white;transition:.4s;border-radius:50%}
+input:checked+.slider{background-color:var(--accent)}
+input:checked+.slider:before{transform:translateX(24px)}
+
+/* --- 容器与卡片 --- */
+.container{max-width:600px;margin:20px auto;padding:0 15px;display:flex;flex-direction:column;gap:20px;}
+.card{background:var(--card);border-radius:12px;padding:20px;box-shadow:var(--shadow);}
+h3{margin:0 0 15px 0;font-size:16px;border-left:4px solid var(--accent);padding-left:10px;}
+
+/* --- 输入区 --- */
+.input-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;}
+.input-item{display:flex;flex-direction:column;}
+.input-item label{font-size:12px;color:var(--gray);margin-bottom:5px;}
+.input-item input{padding:10px;border:1px solid #ddd;border-radius:6px;font-size:16px;background:var(--bg);color:var(--text);outline:none;transition:0.3s;}
+.input-item input:focus{border-color:var(--accent);}
+
+/* --- 按钮组 --- */
+.btn-group{display:flex;gap:10px;margin-top:20px;}
+button{flex:1;padding:12px;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;transition:0.2s;}
+#saveBtn{background:var(--accent);color:white;}
+#saveBtn:active{transform:scale(0.98);}
+#resetBtn{background:var(--gray);color:white;flex:0.4;}
+
+/* --- 进度条 --- */
+.stat-row{display:flex;align-items:center;margin-bottom:12px;}
+.stat-label{width:40px;font-weight:bold;}
+.progress-bg{flex:1;height:12px;background:rgba(0,0,0,0.1);border-radius:6px;margin:0 10px;overflow:hidden;}
+.progress-fill{height:100%;background:var(--accent);width:0%;transition:width 0.5s cubic-bezier(0.4, 0, 0.2, 1);}
+.progress-fill.warn{background:var(--warn);}
+.progress-fill.danger{background:var(--danger);}
+.stat-val{width:50px;text-align:right;font-size:14px;}
+.diff-badge{font-size:12px;padding:2px 6px;border-radius:4px;margin-left:5px;min-width:30px;text-align:center;}
+.diff-pos{background:rgba(40,167,69,0.15);color:var(--accent);}
+.diff-neg{background:rgba(220,53,69,0.15);color:var(--danger);}
+
+/* --- 总分大卡片 --- */
+.total-box{text-align:center;padding:10px;background:rgba(40,167,69,0.05);border-radius:8px;margin-bottom:15px;border:1px solid rgba(40,167,69,0.2);}
+.total-score{font-size:32px;font-weight:800;color:var(--accent);}
+.total-target{font-size:14px;color:var(--gray);}
+
+/* --- 补弱建议 --- */
+.advice-item{background:rgba(0,0,0,0.03);padding:10px;border-radius:6px;margin-bottom:8px;font-size:14px;border-left:3px solid var(--danger);}
+.advice-subj{font-weight:bold;margin-right:5px;}
+.empty-tip{text-align:center;color:var(--gray);font-size:13px;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1> 成绩打怪 · 进阶版</h1>
+  <label class="switch">
+    <input type="checkbox" id="darkToggle">
+    <span class="slider"></span>
+  </label>
+</header>
+
+<div class="container">
+  
+  <!-- 1. 录入区 -->
+  <div class="card">
+    <h3> 录入战绩</h3>
+    <div class="input-grid" id="inputArea"></div>
+    <div class="btn-group">
+      <button id="resetBtn">重置</button>
+      <button id="saveBtn"> 生成分析战报</button>
+    </div>
+  </div>
+
+  <!-- 2. 总分概览 -->
+  <div class="card" id="totalCard" style="display:none;">
+    <h3> 综合评价</h3>
+    <div class="total-box">
+      <div class="total-score" id="totalScoreDisp">0</div>
+      <div class="total-target">目标总分 <span id="totalTargetDisp">0</span></div>
+    </div>
+    <div id="barArea"></div>
+  </div>
+
+  <!-- 3. 补弱清单 -->
+  <div class="card" id="weakCard" style="display:none;">
+    <h3> 重点补弱 (Top 3)</h3>
+    <div id="weakList"></div>
+  </div>
+
+</div>
+
+<script>
+/* ================= 配置区 (可自行修改) ================= */
+// 默认目标分（这里是理科配置，文科生可将'物化生'改为'政史地'）
+const targets = {
+  "语文": 110,
+  "数学": 110,
+  "英语": 110,
+  "物理": 90,
+  "化学": 80,
+  "生物": 80
+};
+
+// 针对各科的补弱建议库
+const adviceLib = {
+  "语文": "重点背诵古诗文默写，限时训练一篇非连续性文本阅读。",
+  "数学": "重做近3次考试的错题，重点突破导数或圆锥曲线第一问。",
+  "英语": "每天听力磨耳朵15分钟，坚持背诵一篇高分作文范文。",
+  "物理": "回归课本，梳理力学和电磁学公式，多做一道实验大题。",
+  "化学": "复习元素周期律，强化工艺流程题的答题模板。",
+  "生物": "速览选修课本，强化光合呼吸作用的图解记忆。",
+  "历史": "梳理时间轴，强化史料分析题的答题规范。",
+  "政治": "背诵核心术语，多看时政热点与教材原理的联系。",
+  "地理": "训练读图能力，总结自然地理和人文地理的大题模板。"
+};
+
+const encouragements = [
+  "乾坤未定，你我皆是黑马！",
+  "每一分的差距，都是向上攀登的阶梯！",
+  "稳住心态，这只是下一次爆发的蓄力！",
+  "不要假装努力，结果不会陪你演戏，加油！",
+  "距离目标越来越近了，保持这个节奏！"
+];
+
+/* ================= 核心逻辑代码 ================= */
+const subjects = Object.keys(targets);
+const inputArea = document.getElementById('inputArea');
+const barArea = document.getElementById('barArea');
+const weakList = document.getElementById('weakList');
+
+// 1. 初始化输入框
+function initInputs() {
+  inputArea.innerHTML = '';
+  subjects.forEach(sub => {
+    inputArea.innerHTML += `
+      <div class="input-item">
+        <label>${sub} (目标${targets[sub]})</label>
+        <input type="number" id="in_${sub}" placeholder="0" onfocus="this.select()">
+      </div>
+    `;
+  });
+  loadData(); // 页面加载时自动读取
+}
+
+// 2. 核心计算与渲染
+function analyze() {
+  let currentTotal = 0;
+  let targetTotal = 0;
+  let weakArr = [];
+  barArea.innerHTML = '';
+
+  // 遍历所有科目
+  subjects.forEach(sub => {
+    // 获取输入值，为空则默认为0
+    let val = parseFloat(document.getElementById(`in_${sub}`).value) || 0;
+    let tar = targets[sub];
+    
+    currentTotal += val;
+    targetTotal += tar;
+
+    // 计算百分比和差距
+    let percent = Math.min(100, (val / tar) * 100);
+    let diff = val - tar;
+    
+    // 判定颜色
+    let colorClass = '';
+    if (percent < 60) colorClass = 'danger';
+    else if (percent < 85) colorClass = 'warn';
+    
+    // 收集弱科数据
+    if (diff < 0) {
+      weakArr.push({ subject: sub, diff: diff, val: val });
+    }
+
+    // 生成单科条
+    let diffHtml = diff >= 0 
+      ? `<span class="diff-badge diff-pos">+${diff}</span>` 
+      : `<span class="diff-badge diff-neg">${diff}</span>`;
+
+    barArea.innerHTML += `
+      <div class="stat-row">
+        <div class="stat-label">${sub}</div>
+        <div class="progress-bg">
+          <div class="progress-fill ${colorClass}" style="width: ${percent}%"></div>
+        </div>
+        <div class="stat-val">${val}</div>
+        ${diffHtml}
+      </div>
+    `;
+  });
+
+  // 更新总分卡片
+  document.getElementById('totalScoreDisp').textContent = currentTotal;
+  document.getElementById('totalTargetDisp').textContent = targetTotal;
+  document.getElementById('totalCard').style.display = 'block';
+
+  // 排序并生成补弱建议 (按差距倒序)
+  weakArr.sort((a, b) => a.diff - b.diff);
+  weakList.innerHTML = '';
+  
+  if (weakArr.length === 0) {
+    weakList.innerHTML = '<div class="empty-tip" style="color:var(--accent)"> 全员达标！请保持现有优势！</div>';
+  } else {
+    // 取前3个弱项
+    weakArr.slice(0, 3).forEach(item => {
+      let advice = adviceLib[item.subject] || "查漏补缺，回归课本。";
+      weakList.innerHTML += `
+        <div class="advice-item">
+          <span class="advice-subj">${item.subject}</span>
+          <span>(差 ${Math.abs(item.diff)} 分)</span><br>
+          <span style="color:#666;font-size:13px"> ${advice}</span>
+        </div>
+      `;
+    });
+  }
+  document.getElementById('weakCard').style.display = 'block';
+  
+  // 保存数据
+  saveData();
+  
+  // 随机弹窗鼓励 (仅手动点击按钮时)
+  return currentTotal; 
+}
+
+// 3. 数据持久化 (LocalStorage)
+function saveData() {
+  const data = {};
+  subjects.forEach(sub => {
+    data[sub] = document.getElementById(`in_${sub}`).value;
+  });
+  localStorage.setItem('grade_hero_scores', JSON.stringify(data));
+}
+
+function loadData() {
+  const saved = localStorage.getItem('grade_hero_scores');
+  if (saved) {
+    const data = JSON.parse(saved);
+    subjects.forEach(sub => {
+      if(data[sub]) document.getElementById(`in_${sub}`).value = data[sub];
+    });
+    // 如果有数据，自动分析一次，但不弹窗
+    if(Object.keys(data).length > 0) analyze(); 
+  }
+}
+
+// 4. 重置功能
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if(confirm('确定要清空所有成绩吗？')) {
+    localStorage.removeItem('grade_hero_scores');
+    subjects.forEach(sub => document.getElementById(`in_${sub}`).value = '');
+    document.getElementById('totalCard').style.display = 'none';
+    document.getElementById('weakCard').style.display = 'none';
+  }
+});
+
+// 5. 点击保存按钮
+document.getElementById('saveBtn').addEventListener('click', () => {
+  analyze();
+  const msg = encouragements[Math.floor(Math.random() * encouragements.length)];
+  alert("分析完成！\n" + msg);
+  // 滚动到底部
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+});
+
+// 6. 深色模式逻辑
+const darkToggle = document.getElementById('darkToggle');
+const savedTheme = localStorage.getItem('grade_hero_theme');
+if (savedTheme === 'dark') {
+  document.documentElement.setAttribute('data-theme', 'dark');
+  darkToggle.checked = true;
+}
+darkToggle.addEventListener('change', (e) => {
+  if (e.target.checked) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    localStorage.setItem('grade_hero_theme', 'dark');
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    localStorage.setItem('grade_hero_theme', 'light');
+  }
+});
+
+// 启动
+initInputs();
+</script>
+</body>
+</html>
